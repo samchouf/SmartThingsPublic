@@ -24,17 +24,13 @@ metadata {
 		capability "Health Check"
 		capability "Configuration"
 
-		fingerprint deviceId: '0xA102', inClusters: '0x30,0x9C,0x60,0x85,0x8E,0x72,0x70,0x86,0x80,0x84,0x7A', deviceJoinName: "Water Leak Sensor"
-		fingerprint mfr: "021F", prod: "0003", model: "0085", deviceJoinName: "Dome Water Leak Sensor" //Dome Leak Sensor
-		fingerprint mfr: "0258", prod: "0003", model: "1085", deviceJoinName: "NEO Coolcam Water Leak Sensor" //NAS-WS03ZE //NEO Coolcam Water Sensor
-		fingerprint mfr: "0086", prod: "0102", model: "007A", deviceJoinName: "Aeotec Water Leak Sensor" //US //Aeotec Water Sensor 6
-		fingerprint mfr: "0086", prod: "0002", model: "007A", deviceJoinName: "Aeotec Water Leak Sensor" //EU //Aeotec Water Sensor 6
-		fingerprint mfr: "0086", prod: "0202", model: "007A", deviceJoinName: "Aeotec Water Leak Sensor" //AU //Aeotec Water Sensor 6
-		fingerprint mfr: "000C", prod: "0201", model: "000A", deviceJoinName: "HomeSeer Water Leak Sensor" //HomeSeer LS100+ Water Sensor
-		//zw:Ss2 type:0701 mfr:0173 prod:4C47 model:4C44 ver:1.10 zwv:4.61 lib:03 cc:5E,55,98,9F sec:86,71,85,59,72,5A,6C,7A,84,80
-		fingerprint mfr: "0173", prod: "4C47", model: "4C44", deviceJoinName: "Leak Gopher Water Leak Sensor" //Leak Intelligence Leak Gopher Z-Wave Leak Detector
-		//zw:Ss2a type:0701 mfr:027A prod:7000 model:E002 ver:1.05 zwv:7.13 lib:03 cc:5E,55,9F,6C sec:86,85,8E,59,72,5A,87,73,80,71,30,70,84,7A
-		fingerprint mfr: "027A", prod: "7000", model: "E002", deviceJoinName: "Zooz Water Leak Sensor" //Zooz ZSE42 XS Water Leak Sensor
+		fingerprint deviceId: '0xA102', inClusters: '0x30,0x9C,0x60,0x85,0x8E,0x72,0x70,0x86,0x80,0x84,0x7A'
+		fingerprint mfr: "021F", prod: "0003", model: "0085", deviceJoinName: "Dome Leak Sensor"
+		fingerprint mfr: "0258", prod: "0003", model: "1085", deviceJoinName: "NEO Coolcam Water Sensor" //NAS-WS03ZE
+		fingerprint mfr: "0086", prod: "0102", model: "007A", deviceJoinName: "Aeotec Water Sensor 6" //US
+		fingerprint mfr: "0086", prod: "0002", model: "007A", deviceJoinName: "Aeotec Water Sensor 6" //EU
+		fingerprint mfr: "0086", prod: "0202", model: "007A", deviceJoinName: "Aeotec Water Sensor 6" //AU
+		fingerprint mfr: "000C", prod: "0201", model: "000A", deviceJoinName: "HomeSeer LS100+ Water Sensor"
 	}
 
 	simulator {
@@ -62,8 +58,8 @@ metadata {
 }
 
 def initialize() {
-	if (isAeotec() || isNeoCoolcam() || isDome() || isLeakGopher() || isZooz()) {
-		// 8 hour (+ 2 minutes) ping for Aeotec, NEO Coolcam, Dome, Leak Gopher, Zooz
+	if (isAeotec() || isNeoCoolcam() || isDome()) {
+		// 8 hour (+ 2 minutes) ping for Aeotec, NEO Coolcam, Dome
 		sendEvent(name: "checkInterval", value: 8 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
 	} else {
 		// 12 hours (+ 2 minutes) for other devices
@@ -86,16 +82,11 @@ def updated() {
 def configure() {
 	if (isAeotec()) {
 		def commands = []
-		commands << encap(zwave.associationV2.associationSet(groupingIdentifier:3, nodeId: [zwaveHubNodeId]))
-		commands << encap(zwave.associationV2.associationSet(groupingIdentifier:4, nodeId: [zwaveHubNodeId]))
-		// send basic sets to devices in groups 3 and 4 when water is detected
-		commands << encap(zwave.configurationV1.configurationSet(parameterNumber: 0x58, scaledConfigurationValue: 1, size: 1))
-		commands << encap(zwave.configurationV1.configurationSet(parameterNumber: 0x59, scaledConfigurationValue: 1, size: 1))
 		// Tell sensor to send us battery information instead of USB power information
 		commands << encap(zwave.configurationV1.configurationSet(parameterNumber: 0x5E, scaledConfigurationValue: 1, size: 1))
 		response(delayBetween(commands, 1000) + ["delay 20000", encap(zwave.wakeUpV1.wakeUpNoMoreInformation())])
-	} else if (isNeoCoolcam() || isDome() || isLeakGopher() || isZooz()) {
-		// wakeUpInterval set to 4 h for NEO Coolcam, Dome, Leak Gopher, Zooz
+	} else if (isNeoCoolcam() || isDome()) {
+		// wakeUpInterval set to 4 h for NEO Coolcam, Dome
 		zwave.wakeUpV1.wakeUpIntervalSet(seconds: 4 * 3600, nodeid: zwaveHubNodeId).format()
 	}
 }
@@ -330,12 +321,4 @@ private isNeoCoolcam() {
 
 private isAeotec() {
 	zwaveInfo.mfr == "0086" && zwaveInfo.model == "007A"
-}
-
-private isLeakGopher() {
-	zwaveInfo.mfr == "0173" && zwaveInfo.model == "4C44"
-}
-
-private isZooz() {
-	zwaveInfo.mfr == "027A" && zwaveInfo.model == "E002"
 }
